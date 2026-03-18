@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+  <link rel="manifest" href="manifest.json"/>
+  <meta name="theme-color" content="#0f0f13"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="CEE Tracker"/>
+  <link rel="apple-touch-icon" href="icons/icon-192.png"/>
+  <script>if("serviceWorker" in navigator)navigator.serviceWorker.register("./sw.js");</script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CEE Study Tracker</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0;}
+  :root{
+    --bg:#0f0f13;--bg2:#16161d;--bg3:#1e1e28;--border:#2a2a38;
+    --green:#4ade80;--blue:#60a5fa;--amber:#fbbf24;--purple:#a78bfa;--red:#f87171;
+    --text:#f0f0f5;--muted:#6b6b82;
+  }
+  body{background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif;min-height:100vh;}
+  
+  /* Layout */
+  .app{max-width:420px;margin:0 auto;padding:16px;}
+  
+  /* Header */
+  .header{text-align:center;padding:20px 0 16px;}
+  .header h1{font-size:22px;font-weight:700;letter-spacing:-.5px;}
+  .header h1 span{color:var(--green);}
+  .countdown{display:inline-block;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:4px 14px;font-size:12px;color:var(--muted);margin-top:6px;}
+  .countdown b{color:var(--amber);}
+  
+  /* Date strip */
+  .date-strip{display:flex;gap:6px;margin-bottom:16px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;}
+  .date-strip::-webkit-scrollbar{display:none;}
+  .day-chip{flex-shrink:0;width:48px;text-align:center;padding:8px 4px;border-radius:12px;border:1px solid var(--border);background:var(--bg2);cursor:pointer;transition:.15s;}
+  .day-chip .dn{font-size:10px;color:var(--muted);text-transform:uppercase;}
+  .day-chip .dd{font-size:18px;font-weight:700;}
+  .day-chip.today{border-color:var(--green);background:#0d2018;}
+  .day-chip.today .dd{color:var(--green);}
+  
+  /* Progress ring */
+  .progress-card{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:20px;display:flex;align-items:center;gap:20px;margin-bottom:14px;}
+  .ring-wrap{position:relative;flex-shrink:0;}
+  .ring-wrap svg{transform:rotate(-90deg);}
+  .ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .ring-pct{font-size:20px;font-weight:700;}
+  .ring-label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;}
+  .prog-info{flex:1;}
+  .prog-title{font-size:14px;font-weight:600;margin-bottom:4px;}
+  .prog-sub{font-size:12px;color:var(--muted);}
+  .hours-done{font-size:28px;font-weight:700;margin-top:4px;}
+  .hours-done span{font-size:14px;color:var(--muted);font-weight:400;}
+  
+  /* Subject blocks */
+  .section-title{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;}
+  .subject-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
+  .subject-card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:14px 16px;cursor:pointer;transition:.15s;user-select:none;}
+  .subject-card:hover{border-color:#3a3a50;}
+  .subject-card.done{border-color:var(--green);background:#0d2018;}
+  .subject-card.done .s-check{background:var(--green);border-color:var(--green);}
+  .subject-card.done .s-check::after{opacity:1;}
+  .s-row{display:flex;align-items:center;gap:10px;}
+  .s-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+  .s-name{font-size:14px;font-weight:600;flex:1;}
+  .s-time{font-size:12px;color:var(--muted);}
+  .s-check{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--border);position:relative;flex-shrink:0;transition:.15s;}
+  .s-check::after{content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#0f0f13;opacity:0;transition:.15s;}
+  .s-topics{font-size:11px;color:var(--muted);margin-top:6px;padding-left:20px;line-height:1.6;}
+
+  /* Revision due */
+  .rev-list{display:flex;flex-direction:column;gap:6px;margin-bottom:16px;}
+  .rev-item{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px;}
+  .rev-item.overdue{border-color:#7f2020;}
+  .rev-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:8px;flex-shrink:0;}
+  .rb-day1{background:#1a1030;color:var(--purple);}
+  .rb-day7{background:#0a1a30;color:var(--blue);}
+  .rb-day14{background:#1a1500;color:var(--amber);}
+  .rb-day30{background:#1a0a0a;color:var(--red);}
+  .rev-name{font-size:13px;font-weight:500;flex:1;}
+  .rev-subj{font-size:11px;color:var(--muted);}
+  .rev-done-btn{font-size:11px;font-weight:600;padding:3px 10px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--green);cursor:pointer;transition:.15s;}
+  .rev-done-btn:hover{background:#0d2018;border-color:var(--green);}
+
+  /* Reminder toggle */
+  .reminder-card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:14px 16px;margin-bottom:16px;}
+  .rem-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .rem-title{font-size:14px;font-weight:600;flex:1;}
+  .toggle{width:40px;height:22px;background:var(--border);border-radius:11px;position:relative;cursor:pointer;transition:.2s;flex-shrink:0;}
+  .toggle.on{background:var(--green);}
+  .toggle::after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:.2s;}
+  .toggle.on::after{transform:translateX(18px);}
+  .rem-times{display:flex;gap:8px;flex-wrap:wrap;}
+  .rem-time-btn{font-size:12px;padding:4px 12px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:.15s;}
+  .rem-time-btn.active{border-color:var(--green);color:var(--green);background:#0d2018;}
+
+  /* Streak */
+  .streak-card{background:linear-gradient(135deg,#1a1500,#130d00);border:1px solid #3d3000;border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:14px;margin-bottom:16px;}
+  .streak-num{font-size:36px;font-weight:700;color:var(--amber);line-height:1;}
+  .streak-info .si-title{font-size:14px;font-weight:600;}
+  .streak-info .si-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+  .flame{font-size:28px;}
+
+  /* Bottom nav */
+  .bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:420px;max-width:100%;background:var(--bg2);border-top:1px solid var(--border);display:flex;padding:8px 0 12px;}
+  .bnav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px;cursor:pointer;background:none;border:none;color:var(--muted);font-family:inherit;transition:.15s;}
+  .bnav-btn.active{color:var(--green);}
+  .bnav-icon{font-size:20px;}
+  .bnav-label{font-size:10px;font-weight:500;}
+  .pb{padding-bottom:80px;}
+
+  /* Toast */
+  .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-60px);background:#1e2e1e;border:1px solid var(--green);color:var(--green);font-size:13px;font-weight:500;padding:10px 20px;border-radius:12px;transition:.3s;z-index:999;white-space:nowrap;}
+  .toast.show{transform:translateX(-50%) translateY(0);}
+
+  /* Month view */
+  .month-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:16px;}
+  .mg-day{aspect-ratio:1;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;background:var(--bg2);border:1px solid var(--border);color:var(--muted);}
+  .mg-day.studied{background:#0d2018;border-color:var(--green);color:var(--green);}
+  .mg-day.today{border-color:var(--amber);color:var(--amber);}
+  .mg-header{font-size:10px;color:var(--muted);text-align:center;padding:4px 0;text-transform:uppercase;}
+
+  /* Stats */
+  .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;}
+  .stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:14px;}
+  .stat-val{font-size:26px;font-weight:700;margin-bottom:2px;}
+  .stat-lbl{font-size:11px;color:var(--muted);}
+
+  /* Log material */
+  .log-btn{width:100%;padding:11px;background:transparent;border:1px dashed var(--border);border-radius:14px;color:var(--muted);font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:.15s;margin-bottom:16px;}
+  .log-btn:hover{border-color:var(--purple);color:var(--purple);}
+  .log-form{background:var(--bg2);border:1px solid var(--purple);border-radius:16px;padding:16px;margin-bottom:16px;display:none;}
+  .log-form.open{display:block;}
+  .log-row{display:flex;gap:8px;margin-bottom:8px;}
+  .log-select,.log-input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:8px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;}
+  .log-select:focus,.log-input:focus{border-color:var(--purple);}
+  .log-select option{background:var(--bg3);}
+  .log-save{width:100%;padding:9px;background:var(--purple);color:#fff;font-family:inherit;font-size:13px;font-weight:600;border:none;border-radius:10px;cursor:pointer;}
+
+  /* Saturday page */
+  .sat-hero{background:linear-gradient(135deg,#1a0d2e,#0d1a2e);border:1px solid #3d2060;border-radius:18px;padding:18px;margin-bottom:16px;text-align:center;}
+  .sat-hero h2{font-size:20px;font-weight:700;margin-bottom:4px;}
+  .sat-hero p{font-size:12px;color:var(--muted);}
+  .sat-progress{height:6px;background:var(--border);border-radius:3px;margin-top:12px;overflow:hidden;}
+  .sat-progress-fill{height:100%;background:var(--purple);border-radius:3px;transition:.4s;}
+
+  .mat-group{margin-bottom:14px;}
+  .mat-group-title{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+  .mat-item{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:11px 14px;display:flex;align-items:center;gap:10px;margin-bottom:6px;cursor:pointer;transition:.15s;user-select:none;}
+  .mat-item:hover{border-color:#3a3a50;}
+  .mat-item.revised{border-color:var(--green);background:#0d2018;opacity:.7;}
+  .mat-item.revised .mat-name{text-decoration:line-through;color:var(--muted);}
+  .mat-check{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;transition:.15s;}
+  .mat-item.revised .mat-check{background:var(--green);border-color:var(--green);color:#0f0f13;font-weight:700;}
+  .mat-name{font-size:13px;font-weight:500;flex:1;}
+  .mat-date{font-size:11px;color:var(--muted);}
+  .mat-del{font-size:16px;color:var(--muted);padding:2px 6px;cursor:pointer;opacity:.5;}
+  .mat-del:hover{opacity:1;color:var(--red);}
+  .empty-state{text-align:center;padding:32px 16px;color:var(--muted);font-size:13px;line-height:1.8;}
+  .sat-done-card{background:linear-gradient(135deg,#0d2018,#0a1a08);border:1px solid var(--green);border-radius:16px;padding:16px;text-align:center;margin-bottom:14px;display:none;}
+  .sat-done-card.show{display:block;}
+  .clear-btn{width:100%;padding:9px;background:transparent;border:1px solid #3a2020;border-radius:10px;color:var(--red);font-family:inherit;font-size:12px;cursor:pointer;margin-top:8px;opacity:.6;}
+  .clear-btn:hover{opacity:1;background:#1a0a0a;}
+
+  /* Subjects page */
+  .color-pick{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;}
+  .cp{width:26px;height:26px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:.15s;}
+  .cp.sel{border-color:#fff;transform:scale(1.15);}
+  .subj-card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:14px 16px;margin-bottom:8px;}
+  .subj-card-row{display:flex;align-items:center;gap:10px;}
+  .subj-card-name{font-size:14px;font-weight:600;flex:1;}
+  .subj-card-time{font-size:11px;color:var(--muted);}
+  .subj-del-btn{font-size:18px;color:var(--muted);cursor:pointer;padding:2px 6px;opacity:.5;background:none;border:none;font-family:inherit;}
+  .subj-del-btn:hover{opacity:1;color:var(--red);}
+  .subj-topics-list{margin-top:8px;padding-left:4px;}
+  .topic-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);}
+  .topic-row:last-child{border-bottom:none;}
+  .topic-name{font-size:12px;flex:1;color:var(--muted);}
+  .topic-del{font-size:14px;cursor:pointer;color:var(--muted);opacity:.4;background:none;border:none;font-family:inherit;}
+  .topic-del:hover{opacity:1;color:var(--red);}
+  .add-topic-row{display:flex;gap:6px;margin-top:8px;}
+  .add-topic-input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);font-family:inherit;font-size:12px;outline:none;}
+  .add-topic-input:focus{border-color:var(--green);}
+  .add-topic-btn{padding:6px 12px;background:var(--green);color:#0f0f13;font-family:inherit;font-size:12px;font-weight:700;border:none;border-radius:8px;cursor:pointer;}
+  .expand-btn{font-size:11px;color:var(--muted);background:none;border:none;font-family:inherit;cursor:pointer;padding:4px 0;margin-top:4px;}
+  .new-subj-form{background:var(--bg2);border:1px solid var(--blue);border-radius:16px;padding:16px;margin-bottom:14px;display:none;}
+  .new-subj-form.open{display:block;}
+  .form-label{font-size:11px;color:var(--muted);margin-bottom:4px;display:block;}
+  .form-section{margin-bottom:12px;}
+  .time-row{display:flex;gap:8px;}
+</style>
+</head>
+<body>
+<div class="app pb">
+
+  <div id="page-today" class="page">
+    <div class="header">
+      <h1>CEE <span>Tracker</span></h1>
+      <div class="countdown">⏳ <b id="days-left">120</b> days to exam</div>
+    </div>
+
+    <!-- Date strip -->
+    <div class="date-strip" id="date-strip"></div>
+
+    <!-- Progress ring -->
+    <div class="progress-card">
+      <div class="ring-wrap">
+        <svg width="72" height="72" viewBox="0 0 72 72">
+          <circle cx="36" cy="36" r="28" fill="none" stroke="#2a2a38" stroke-width="6"/>
+          <circle id="ring-prog" cx="36" cy="36" r="28" fill="none" stroke="#4ade80" stroke-width="6"
+            stroke-dasharray="175.9" stroke-dashoffset="175.9" stroke-linecap="round"/>
+        </svg>
+        <div class="ring-center">
+          <span class="ring-pct" id="ring-pct-text">0%</span>
+          <span class="ring-label">done</span>
+        </div>
+      </div>
+      <div class="prog-info">
+        <div class="prog-title">Today's Study</div>
+        <div class="prog-sub">Target: 11.5 hours</div>
+        <div class="hours-done" id="hours-done-text">0h 0m <span>/ 11.5h</span></div>
+      </div>
+    </div>
+
+    <!-- Subjects -->
+    <div class="section-title">Today's Sessions</div>
+    <div class="subject-list" id="subject-list"></div>
+
+    <!-- Log Material -->
+    <button class="log-btn" onclick="toggleLogForm()">+ Log studied material</button>
+    <div class="log-form" id="log-form">
+      <div class="log-row">
+        <select class="log-select" id="log-subject">
+        </select>
+      </div>
+      <div class="log-row">
+        <input class="log-input" id="log-chapter" placeholder="Chapter / topic name e.g. Cell Division" />
+      </div>
+      <div class="log-row">
+        <input class="log-input" id="log-notes" placeholder="Notes (optional)" />
+      </div>
+      <button class="log-save" onclick="saveMaterial()">Save Material ✓</button>
+    </div>
+
+    <!-- Revision due -->
+    <div class="section-title" id="rev-section-title">Revision Due Today</div>
+    <div class="rev-list" id="rev-list"></div>
+
+    <!-- Quote -->
+    <div id="quote-card" style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:16px 18px;margin-bottom:14px;cursor:pointer;" onclick="nextQuote()" title="Tap for next quote">
+      <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">💬 Daily Motivation</div>
+      <div id="quote-text" style="font-size:14px;line-height:1.7;color:var(--text);font-style:italic;"></div>
+      <div id="quote-author" style="font-size:11px;color:var(--muted);margin-top:6px;text-align:right;"></div>
+      <div style="font-size:10px;color:var(--muted);margin-top:8px;opacity:.5;">tap for next →</div>
+    </div>
+
+    <!-- Streak -->
+    <div class="streak-card">
+      <span class="flame">🔥</span>
+      <div>
+        <div class="streak-num" id="streak-num">0</div>
+        <div class="streak-info">
+          <div class="si-title">Day Streak</div>
+          <div class="si-sub">Complete all sessions to continue</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="page-reminders" class="page" style="display:none">
+    <div class="header"><h1>⏰ <span>Reminders</span></h1></div>
+    <div class="reminder-card">
+      <div class="rem-row">
+        <span style="font-size:18px">🌅</span>
+        <span class="rem-title">Biology Morning Block</span>
+        <div class="toggle on" id="t1" onclick="toggleReminder(this)"></div>
+      </div>
+      <div class="rem-times">
+        <button class="rem-time-btn" onclick="pickTime(this,'morning')">5:30 AM</button>
+        <button class="rem-time-btn active" onclick="pickTime(this,'morning')">6:00 AM</button>
+        <button class="rem-time-btn" onclick="pickTime(this,'morning')">6:30 AM</button>
+      </div>
+    </div>
+    <div class="reminder-card">
+      <div class="rem-row">
+        <span style="font-size:18px">☀️</span>
+        <span class="rem-title">Afternoon Study Block</span>
+        <div class="toggle on" id="t2" onclick="toggleReminder(this)"></div>
+      </div>
+      <div class="rem-times">
+        <button class="rem-time-btn" onclick="pickTime(this,'afternoon')">12:30 PM</button>
+        <button class="rem-time-btn active" onclick="pickTime(this,'afternoon')">1:00 PM</button>
+        <button class="rem-time-btn" onclick="pickTime(this,'afternoon')">1:30 PM</button>
+      </div>
+    </div>
+    <div class="reminder-card">
+      <div class="rem-row">
+        <span style="font-size:18px">🌙</span>
+        <span class="rem-title">Statistics & Microbiology</span>
+        <div class="toggle on" id="t3" onclick="toggleReminder(this)"></div>
+      </div>
+      <div class="rem-times">
+        <button class="rem-time-btn" onclick="pickTime(this,'evening')">5:30 PM</button>
+        <button class="rem-time-btn active" onclick="pickTime(this,'evening')">6:00 PM</button>
+        <button class="rem-time-btn" onclick="pickTime(this,'evening')">6:30 PM</button>
+      </div>
+    </div>
+    <div class="reminder-card">
+      <div class="rem-row">
+        <span style="font-size:18px">📖</span>
+        <span class="rem-title">Daily Revision Reminder</span>
+        <div class="toggle on" id="t4" onclick="toggleReminder(this)"></div>
+      </div>
+      <div class="rem-times">
+        <button class="rem-time-btn" onclick="pickTime(this,'revision')">8:00 PM</button>
+        <button class="rem-time-btn active" onclick="pickTime(this,'revision')">8:30 PM</button>
+        <button class="rem-time-btn" onclick="pickTime(this,'revision')">9:00 PM</button>
+      </div>
+    </div>
+    <div class="reminder-card">
+      <div class="rem-row">
+        <span style="font-size:18px">🔁</span>
+        <span class="rem-title">Revision Block (Day+1)</span>
+        <div class="toggle on" id="t5" onclick="toggleReminder(this)"></div>
+      </div>
+      <div class="rem-times">
+        <button class="rem-time-btn" onclick="pickTime(this,'rev1')">3:30 PM</button>
+        <button class="rem-time-btn active" onclick="pickTime(this,'rev1')">4:00 PM</button>
+        <button class="rem-time-btn" onclick="pickTime(this,'rev1')">4:30 PM</button>
+      </div>
+    </div>
+    <div class="reminder-card">
+      <div class="rem-row">
+        <span style="font-size:18px">⚡</span>
+        <span class="rem-title">Flash Review (Evening)</span>
+        <div class="toggle on" id="t6" onclick="toggleReminder(this)"></div>
+      </div>
+      <div class="rem-times">
+        <button class="rem-time-btn" onclick="pickTime(this,'rev2')">8:45 PM</button>
+        <button class="rem-time-btn active" onclick="pickTime(this,'rev2')">9:00 PM</button>
+        <button class="rem-time-btn" onclick="pickTime(this,'rev2')">9:15 PM</button>
+      </div>
+    </div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.7;">
+        ⚠️ <b style="color:var(--text)">Browser notifications required.</b><br>
+        Click below to enable push reminders. You'll get notified even when the app is in background.
+      </div>
+      <button onclick="requestNotif()" style="margin-top:10px;width:100%;padding:10px;background:var(--green);color:#0f0f13;font-family:inherit;font-size:13px;font-weight:700;border:none;border-radius:10px;cursor:pointer;">Enable Notifications</button>
+    </div>
+  </div>
+
+  <div id="page-progress" class="page" style="display:none">
+    <div class="header"><h1>📊 <span>Progress</span></h1></div>
+    <div class="section-title">This Month</div>
+    <div class="month-grid" id="cal-grid"></div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-val" id="stat-total-hrs" style="color:var(--green)">0h</div><div class="stat-lbl">Total hours studied</div></div>
+      <div class="stat-card"><div class="stat-val" id="stat-streak" style="color:var(--amber)">0</div><div class="stat-lbl">Day streak</div></div>
+      <div class="stat-card"><div class="stat-val" id="stat-days" style="color:var(--blue)">0</div><div class="stat-lbl">Days studied</div></div>
+      <div class="stat-card"><div class="stat-val" id="stat-revisions" style="color:var(--purple)">0</div><div class="stat-lbl">Revisions done</div></div>
+    </div>
+    <div class="section-title">Subject Progress</div>
+    <div id="subject-progress-list"></div>
+  </div>
+
+  <div id="page-subjects" class="page" style="display:none">
+    <div class="header"><h1>🗂️ <span>My Subjects</span></h1></div>
+
+    <button class="log-btn" style="border-color:var(--blue);color:var(--blue);margin-bottom:12px;" onclick="toggleNewSubjForm()">+ Add new subject</button>
+
+    <div class="new-subj-form" id="new-subj-form">
+      <div class="form-section">
+        <label class="form-label">Subject name</label>
+        <input class="log-input" id="ns-name" placeholder="e.g. Zoology, Algebra, Anatomy" style="width:100%"/>
+      </div>
+      <div class="form-section">
+        <label class="form-label">Session label</label>
+        <input class="log-input" id="ns-sub" placeholder="e.g. Morning session, Chapter review" style="width:100%"/>
+      </div>
+      <div class="form-section">
+        <label class="form-label">Time slot</label>
+        <div class="time-row">
+          <input class="log-input" id="ns-from" placeholder="From  e.g. 6:00 AM" />
+          <input class="log-input" id="ns-to" placeholder="To  e.g. 8:00 AM" />
+        </div>
+      </div>
+      <div class="form-section">
+        <label class="form-label">Hours</label>
+        <input class="log-input" id="ns-hours" type="number" min="0.5" max="6" step="0.5" placeholder="e.g. 2" style="width:100%"/>
+      </div>
+      <div class="form-section">
+        <label class="form-label">Color</label>
+        <div class="color-pick" id="color-pick">
+          <div class="cp sel" style="background:#4ade80" data-color="#4ade80" onclick="pickColor(this)"></div>
+          <div class="cp" style="background:#60a5fa" data-color="#60a5fa" onclick="pickColor(this)"></div>
+          <div class="cp" style="background:#fbbf24" data-color="#fbbf24" onclick="pickColor(this)"></div>
+          <div class="cp" style="background:#f472b6" data-color="#f472b6" onclick="pickColor(this)"></div>
+          <div class="cp" style="background:#a78bfa" data-color="#a78bfa" onclick="pickColor(this)"></div>
+          <div class="cp" style="background:#34d399" data-color="#34d399" onclick="pickColor(this)"></div>
+          <div class="cp" style="background:#f87171" data-color="#f87171" onclick="pickColor(this)"></div>
+          <div class="cp" style="background:#fb923c" data-color="#fb923c" onclick="pickColor(this)"></div>
+          <div class="cp" style="background:#38bdf8" data-color="#38bdf8" onclick="pickColor(this)"></div>
+        </div>
+      </div>
+      <div class="form-section">
+        <label class="form-label">Topics / contents to study (add one by one)</label>
+        <div id="ns-topics-preview" style="margin-bottom:8px;display:flex;flex-wrap:wrap;gap:6px;"></div>
+        <div class="add-topic-row">
+          <input class="add-topic-input" id="ns-topic-input" placeholder="e.g. Cell Division, Mitosis"/>
+          <button class="add-topic-btn" onclick="addNsTopic()">+ Add</button>
+        </div>
+      </div>
+      <button class="log-save" style="background:var(--blue);" onclick="saveNewSubject()">Save Subject ✓</button>
+    </div>
+
+    <div class="section-title">Your subjects</div>
+    <div id="custom-subjects-list"></div>
+  </div>
+
+  <div id="page-saturday" class="page" style="display:none">
+    <div class="header"><h1>📖 <span>Saturday</span> Revision</h1></div>
+
+    <div class="sat-hero">
+      <h2>🗓️ Weekly Review Day</h2>
+      <p>Revise everything you logged this week. Check off each topic as you go.</p>
+      <div class="sat-progress"><div class="sat-progress-fill" id="sat-prog-fill" style="width:0%"></div></div>
+      <div style="font-size:12px;color:var(--muted);margin-top:8px;" id="sat-prog-text">0 of 0 revised</div>
+    </div>
+
+    <div class="sat-done-card" id="sat-done-card">
+      <div style="font-size:28px;margin-bottom:8px;">🎉</div>
+      <div style="font-size:15px;font-weight:700;margin-bottom:4px;">Saturday Revision Complete!</div>
+      <div style="font-size:12px;color:var(--muted);">All materials revised. Rest well — you earned it.</div>
+    </div>
+
+    <div id="sat-material-list"></div>
+
+    <button class="clear-btn" onclick="clearRevised()">Clear revised items</button>
+  </div>
+
+</div>
+<nav class="bnav">
+  <button class="bnav-btn active" id="nav-today" onclick="showPage('today')">
+    <span class="bnav-icon">📚</span><span class="bnav-label">Today</span>
+  </button>
+  <button class="bnav-btn" id="nav-subjects" onclick="showPage('subjects')">
+    <span class="bnav-icon">🗂️</span><span class="bnav-label">Subjects</span>
+  </button>
+  <button class="bnav-btn" id="nav-saturday" onclick="showPage('saturday')">
+    <span class="bnav-icon">📖</span><span class="bnav-label">Saturday</span>
+  </button>
+  <button class="bnav-btn" id="nav-progress" onclick="showPage('progress')">
+    <span class="bnav-icon">📊</span><span class="bnav-label">Progress</span>
+  </button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUBJECTS = [];
+
+const REVISIONS = [
+  {name:'Cell Biology',subj:'Biology',type:'day1'},
+  {name:'Atomic Structure',subj:'Chemistry',type:'day7'},
+  {name:'Kinematics',subj:'Physics',type:'day14'},
+  {name:'Photosynthesis',subj:'Biology',type:'day30'},
+];
+
+let state = JSON.parse(localStorage.getItem('cee_state')||'{}');
+if(!state.completedToday) state.completedToday = {};
+if(!state.streak) state.streak = 0;
+if(!state.studiedDays) state.studiedDays = [];
+if(!state.totalHours) state.totalHours = 0;
+if(!state.revisionsDone) state.revisionsDone = 0;
+if(!state.examDate) state.examDate = new Date(Date.now()+120*86400000).toISOString();
+if(!state.lastReset) state.lastReset = new Date().toDateString();
+
+// Reset daily completions on new day
+const today = new Date().toDateString();
+if(state.lastReset !== today){
+  const yest = new Date(Date.now()-86400000).toDateString();
+  const allS = getAllSubjects();
+  const wasComplete = allS.every(s=>state.completedToday[s.id]);
+  if(wasComplete){ state.streak++; } else { state.streak=0; }
+  if(wasComplete && !state.studiedDays.includes(yest)) state.studiedDays.push(yest);
+  state.completedToday = {};
+  state.lastReset = today;
+  save();
+}
+
+function save(){ localStorage.setItem('cee_state',JSON.stringify(state)); }
+
+// Days left
+const daysLeft = Math.max(0,Math.floor((new Date(state.examDate)-Date.now())/86400000));
+document.getElementById('days-left').textContent = daysLeft;
+
+// Date strip
+function buildDateStrip(){
+  const strip = document.getElementById('date-strip');
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  for(let i=-3;i<=3;i++){
+    const d = new Date(); d.setDate(d.getDate()+i);
+    const chip = document.createElement('div');
+    chip.className='day-chip'+(i===0?' today':'');
+    chip.innerHTML=`<div class="dn">${days[d.getDay()]}</div><div class="dd">${d.getDate()}</div>`;
+    strip.appendChild(chip);
+  }
+}
+buildDateStrip();
+
+// Subjects
+function buildSubjects(){
+  const list = document.getElementById('subject-list');
+  list.innerHTML='';
+  getAllSubjects().forEach(s=>{
+    const done = state.completedToday[s.id];
+    const card = document.createElement('div');
+    card.className='subject-card'+(done?' done':'');
+    card.innerHTML=`
+      <div class="s-row">
+        <div class="s-dot" style="background:${s.dot}"></div>
+        <div class="s-name">${s.name} <span style="font-size:11px;color:var(--muted);font-weight:400">· ${s.sub}</span></div>
+        <span class="s-time">${s.time}</span>
+        <div class="s-check"></div>
+      </div>
+      <div class="s-topics">${s.topics}</div>`;
+    card.onclick=()=>toggleSubject(s.id, card);
+    list.appendChild(card);
+  });
+  updateProgress();
+}
+
+function toggleSubject(id, card){
+  state.completedToday[id] = !state.completedToday[id];
+  card.classList.toggle('done', state.completedToday[id]);
+  const allDone = getAllSubjects().every(s=>state.completedToday[s.id]);
+  if(allDone){ showToast('🎉 All sessions done! Great work today!'); }
+  updateProgress();
+  save();
+}
+
+function updateProgress(){
+  const all = getAllSubjects();
+  const totalHrs = all.reduce((a,s)=>a+s.hours,0);
+  const doneHrs = all.filter(s=>state.completedToday[s.id]).reduce((a,s)=>a+s.hours,0);
+  const pct = totalHrs ? Math.round(doneHrs/totalHrs*100) : 0;
+  const circ = 175.9;
+  document.getElementById('ring-prog').style.strokeDashoffset = circ*(1-pct/100);
+  document.getElementById('ring-pct-text').textContent = pct+'%';
+  document.getElementById('hours-done-text').innerHTML = `${doneHrs}h <span>/ ${totalHrs}h</span>`;
+  document.getElementById('streak-num').textContent = state.streak;
+}
+
+// Revisions
+function buildRevisions(){
+  const list = document.getElementById('rev-list');
+  list.innerHTML='';
+  const typeMap={day1:{label:'Day+1',cls:'rb-day1'},day7:{label:'Day+7',cls:'rb-day7'},day14:{label:'Day+14',cls:'rb-day14'},day30:{label:'Day+30',cls:'rb-day30'}};
+  REVISIONS.forEach((r,i)=>{
+    const t = typeMap[r.type];
+    const el = document.createElement('div');
+    el.className='rev-item'; el.id='rev-'+i;
+    el.innerHTML=`<span class="rev-badge ${t.cls}">${t.label}</span><div><div class="rev-name">${r.name}</div><div class="rev-subj">${r.subj}</div></div><button class="rev-done-btn" onclick="markRevDone(${i})">Done ✓</button>`;
+    list.appendChild(el);
+  });
+}
+
+function markRevDone(i){
+  const el = document.getElementById('rev-'+i);
+  if(el){ el.style.opacity='.4'; el.style.pointerEvents='none'; }
+  state.revisionsDone = (state.revisionsDone||0)+1;
+  save();
+  showToast('Revision marked complete!');
+}
+
+// Reminder toggles
+function toggleReminder(el){ el.classList.toggle('on'); }
+function pickTime(btn, group){
+  btn.closest('.reminder-card').querySelectorAll('.rem-time-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function requestNotif(){
+  if(!('Notification' in window)){ showToast('Notifications not supported in this browser'); return; }
+  Notification.requestPermission().then(p=>{
+    if(p==='granted'){
+      showToast('✅ Notifications enabled!');
+      scheduleNotifications();
+    } else { showToast('Permission denied — please allow in browser settings'); }
+  });
+}
+
+function scheduleNotifications(){
+  const times=[
+    {h:6,m:0,msg:'🌅 Biology starts now! Botany first — 2 hours strong.'},
+    {h:8,m:0,msg:'🧬 Switch to Zoology — 2 more hours of Biology!'},
+    {h:13,m:0,msg:'⚗️ Afternoon block! Chemistry for 1.5 hours.'},
+    {h:14,m:30,msg:'⚡ Physics time — solve numericals!'},
+    {h:18,m:0,msg:'🦠 Microbiology time — 2 hours, stay focused!'},
+    {h:20,m:0,msg:'📊 Statistics now — 1 hour to go!'},
+    {h:21,m:0,msg:'📖 Flash review time — 30 mins for Stats & Micro notes!'},
+  ];
+  times.forEach(t=>{
+    const now=new Date();
+    const target=new Date(); target.setHours(t.h,t.m,0,0);
+    if(target>now){
+      setTimeout(()=>{ new Notification('CEE Study Tracker',{body:t.msg,icon:'📚'}); }, target-now);
+    }
+  });
+}
+
+// Calendar
+function buildCalendar(){
+  const grid = document.getElementById('cal-grid');
+  grid.innerHTML='';
+  ['S','M','T','W','T','F','S'].forEach(d=>{
+    const h=document.createElement('div'); h.className='mg-header'; h.textContent=d; grid.appendChild(h);
+  });
+  const now=new Date(); const y=now.getFullYear(); const m=now.getMonth();
+  const first=new Date(y,m,1); const last=new Date(y,m+1,0);
+  for(let i=0;i<first.getDay();i++){
+    const blank=document.createElement('div'); blank.className='mg-day'; blank.textContent=''; blank.style.opacity='0'; grid.appendChild(blank);
+  }
+  for(let d=1;d<=last.getDate();d++){
+    const el=document.createElement('div');
+    const ds=new Date(y,m,d).toDateString();
+    const isTod=d===now.getDate();
+    const studied=state.studiedDays.includes(ds);
+    el.className='mg-day'+(studied?' studied':'')+(isTod?' today':'');
+    el.textContent=d; grid.appendChild(el);
+  }
+}
+
+function buildStats(){
+  document.getElementById('stat-total-hrs').textContent=state.totalHours+'h';
+  document.getElementById('stat-streak').textContent=state.streak;
+  document.getElementById('stat-days').textContent=state.studiedDays.length;
+  document.getElementById('stat-revisions').textContent=state.revisionsDone||0;
+
+  const sl=document.getElementById('subject-progress-list');
+  sl.innerHTML='';
+  const subjs=[
+    {name:'Biology',color:'#4ade80',done:14,total:24},
+    {name:'Chemistry',color:'#60a5fa',done:8,total:24},
+    {name:'Physics',color:'#fbbf24',done:10,total:18},
+    {name:'English',color:'#a78bfa',done:16,total:48},
+  ];
+  subjs.forEach(s=>{
+    const pct=Math.round(s.done/s.total*100);
+    sl.innerHTML+=`<div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:12px 16px;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-size:13px;font-weight:600">${s.name}</span>
+        <span style="font-size:12px;color:var(--muted)">${s.done}/${s.total} chapters</span>
+      </div>
+      <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden;">
+        <div style="height:100%;width:${pct}%;background:${s.color};border-radius:3px;transition:.5s"></div>
+      </div></div>`;
+  });
+}
+
+// Pages
+function showPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.style.display='none');
+  document.querySelectorAll('.bnav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+name).style.display='block';
+  document.getElementById('nav-'+name).classList.add('active');
+  if(name==='progress'){ buildCalendar(); buildStats(); }
+  if(name==='saturday'){ buildSaturday(); }
+  if(name==='subjects'){ buildCustomSubjectsList(); }
+}
+
+// Toast
+function showToast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// Quotes
+const QUOTES = [
+  {text:"The secret of getting ahead is getting started. Every hour you study today is a step closer to your dream.",author:"— Mark Twain (adapted)"},
+  {text:"You don't have to be great to start, but you have to start to be great.",author:"— Zig Ziglar"},
+  {text:"Success is the sum of small efforts repeated day in and day out.",author:"— Robert Collier"},
+  {text:"The pain of studying is temporary. The pride of becoming a doctor is forever.",author:"— CEE Wisdom"},
+  {text:"Hard work beats talent when talent doesn't work hard.",author:"— Tim Notke"},
+  {text:"Believe you can and you're halfway there.",author:"— Theodore Roosevelt"},
+  {text:"Don't wish it were easier. Wish you were better.",author:"— Jim Rohn"},
+  {text:"Your future self is watching you right now through your memories. Make it proud.",author:"— Anonymous"},
+  {text:"Every expert was once a beginner. Keep going.",author:"— Helen Hayes"},
+  {text:"The difference between ordinary and extraordinary is that little extra.",author:"— Jimmy Johnson"},
+  {text:"Study not to know more, but to know better.",author:"— Seneca (adapted)"},
+  {text:"4 months of focus. A lifetime of reward. You've got this.",author:"— CEE Tracker"},
+  {text:"One chapter at a time. One day at a time. That's how dreams are built.",author:"— Anonymous"},
+  {text:"It always seems impossible until it's done.",author:"— Nelson Mandela"},
+  {text:"The only way out is through. Open the book.",author:"— CEE Tracker"},
+];
+let qIndex = parseInt(localStorage.getItem('cee_qidx')||'0');
+function showQuote(){
+  const q = QUOTES[qIndex % QUOTES.length];
+  document.getElementById('quote-text').textContent = '"' + q.text + '"';
+  document.getElementById('quote-author').textContent = q.author;
+}
+function nextQuote(){
+  qIndex = (qIndex+1) % QUOTES.length;
+  localStorage.setItem('cee_qidx', qIndex);
+  const card = document.getElementById('quote-card');
+  card.style.opacity='0'; card.style.transition='opacity .2s';
+  setTimeout(()=>{ showQuote(); card.style.opacity='1'; }, 200);
+}
+showQuote();
+
+if(!state.materials) state.materials = [];
+
+// Log material
+function toggleLogForm(){
+  const f = document.getElementById('log-form');
+  f.classList.toggle('open');
+}
+
+function saveMaterial(){
+  const subj = document.getElementById('log-subject').value;
+  const ch = document.getElementById('log-chapter').value.trim();
+  const notes = document.getElementById('log-notes').value.trim();
+  if(!ch){ showToast('Please enter a chapter name'); return; }
+  const entry = {
+    id: Date.now(),
+    subject: subj,
+    chapter: ch,
+    notes: notes,
+    date: new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short'}),
+    dateStr: new Date().toDateString(),
+    revised: false
+  };
+  state.materials.push(entry);
+  save();
+  document.getElementById('log-chapter').value='';
+  document.getElementById('log-notes').value='';
+  document.getElementById('log-form').classList.remove('open');
+  showToast(`📚 "${ch}" logged for Saturday revision!`);
+}
+
+// Saturday page
+const SUBJ_COLORS = {
+  'Biology':'#4ade80','Chemistry':'#60a5fa','Physics':'#fbbf24',
+  'Statistics':'#34d399','Microbiology':'#f472b6'
+};
+
+function buildSaturday(){
+  const list = document.getElementById('sat-material-list');
+  list.innerHTML='';
+  const mats = state.materials || [];
+  if(mats.length === 0){
+    list.innerHTML=`<div class="empty-state">📭 No materials logged yet.<br>Go to <b>Today</b> and tap<br>"+ Log studied material" after each session.</div>`;
+    document.getElementById('sat-prog-text').textContent='0 of 0 revised';
+    document.getElementById('sat-prog-fill').style.width='0%';
+    return;
+  }
+  // Group by subject
+  const groups = {};
+  mats.forEach(m=>{ if(!groups[m.subject]) groups[m.subject]=[]; groups[m.subject].push(m); });
+  const total = mats.length;
+  const done = mats.filter(m=>m.revised).length;
+  const pct = total ? Math.round(done/total*100) : 0;
+  document.getElementById('sat-prog-fill').style.width = pct+'%';
+  document.getElementById('sat-prog-text').textContent = `${done} of ${total} revised`;
+  document.getElementById('sat-done-card').classList.toggle('show', done===total && total>0);
+
+  Object.entries(groups).forEach(([subj, items])=>{
+    const color = SUBJ_COLORS[subj]||'#a78bfa';
+    const grp = document.createElement('div'); grp.className='mat-group';
+    const doneCount = items.filter(i=>i.revised).length;
+    grp.innerHTML=`<div class="mat-group-title"><span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block"></span>${subj} <span style="font-weight:400;opacity:.6">${doneCount}/${items.length}</span></div>`;
+    items.forEach(m=>{
+      const el=document.createElement('div');
+      el.className='mat-item'+(m.revised?' revised':'');
+      el.innerHTML=`<div class="mat-check">${m.revised?'✓':''}</div>
+        <div style="flex:1">
+          <div class="mat-name">${m.chapter}</div>
+          ${m.notes?`<div style="font-size:11px;color:var(--muted);margin-top:2px">${m.notes}</div>`:''}
+        </div>
+        <span class="mat-date">${m.date}</span>
+        <span class="mat-del" onclick="deleteMaterial(${m.id},event)">×</span>`;
+      el.onclick=(e)=>{ if(e.target.classList.contains('mat-del')) return; toggleRevised(m.id); };
+      grp.appendChild(el);
+    });
+    list.appendChild(grp);
+  });
+}
+
+function toggleRevised(id){
+  const m = state.materials.find(x=>x.id===id);
+  if(!m) return;
+  m.revised = !m.revised;
+  if(m.revised){ state.revisionsDone=(state.revisionsDone||0)+1; showToast('✅ Revised!'); }
+  save(); buildSaturday();
+}
+
+function deleteMaterial(id, e){
+  e.stopPropagation();
+  state.materials = state.materials.filter(x=>x.id!==id);
+  save(); buildSaturday();
+  showToast('Removed');
+}
+
+function clearRevised(){
+  state.materials = state.materials.filter(m=>!m.revised);
+  save(); buildSaturday();
+  showToast('Cleared revised items');
+}
+
+if(!state.customSubjects) state.customSubjects = [];
+let nsTopics = [];
+let selectedColor = '#4ade80';
+
+// New subject form
+function toggleNewSubjForm(){
+  const f = document.getElementById('new-subj-form');
+  f.classList.toggle('open');
+  if(f.classList.contains('open')){ nsTopics=[]; renderNsTopics(); }
+}
+function pickColor(el){
+  document.querySelectorAll('.cp').forEach(c=>c.classList.remove('sel'));
+  el.classList.add('sel');
+  selectedColor = el.dataset.color;
+}
+function addNsTopic(){
+  const inp = document.getElementById('ns-topic-input');
+  const v = inp.value.trim();
+  if(!v) return;
+  nsTopics.push(v); inp.value='';
+  renderNsTopics();
+}
+function renderNsTopics(){
+  const box = document.getElementById('ns-topics-preview');
+  box.innerHTML = nsTopics.map((t,i)=>`
+    <span style="display:inline-flex;align-items:center;gap:4px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:3px 8px;font-size:11px;">
+      ${t} <span onclick="removeNsTopic(${i})" style="cursor:pointer;color:var(--muted);font-size:13px;line-height:1;">×</span>
+    </span>`).join('');
+}
+function removeNsTopic(i){ nsTopics.splice(i,1); renderNsTopics(); }
+
+function saveNewSubject(){
+  const name = document.getElementById('ns-name').value.trim();
+  const sub  = document.getElementById('ns-sub').value.trim();
+  const from = document.getElementById('ns-from').value.trim();
+  const to   = document.getElementById('ns-to').value.trim();
+  const hrs  = parseFloat(document.getElementById('ns-hours').value)||1;
+  if(!name){ showToast('Please enter a subject name'); return; }
+  const id = 'custom_'+Date.now();
+  const subj = {
+    id, name,
+    sub: sub||'Custom session',
+    time: (from&&to) ? from+'–'+to : 'Custom time',
+    hours: hrs,
+    color: selectedColor,
+    dot: selectedColor,
+    topics: nsTopics.join(' · ')||'Add topics below',
+    custom: true,
+    topicsList: [...nsTopics]
+  };
+  state.customSubjects.push(subj);
+  save();
+  // Reset form
+  ['ns-name','ns-sub','ns-from','ns-to','ns-hours'].forEach(id=>document.getElementById(id).value='');
+  nsTopics=[]; renderNsTopics();
+  document.getElementById('new-subj-form').classList.remove('open');
+  showToast(`✅ "${name}" added!`);
+  buildSubjects();
+  buildCustomSubjectsList();
+  updateLogSubjectDropdown();
+}
+
+function deleteCustomSubject(id){
+  state.customSubjects = state.customSubjects.filter(s=>s.id!==id);
+  save();
+  buildSubjects();
+  buildCustomSubjectsList();
+  updateLogSubjectDropdown();
+  showToast('Subject removed');
+}
+
+function addTopicToSubject(subjId){
+  const inp = document.getElementById('ti-'+subjId);
+  const v = inp.value.trim();
+  if(!v) return;
+  const s = state.customSubjects.find(s=>s.id===subjId);
+  if(!s) return;
+  if(!s.topicsList) s.topicsList=[];
+  s.topicsList.push(v);
+  s.topics = s.topicsList.join(' · ');
+  inp.value='';
+  save();
+  buildCustomSubjectsList();
+  buildSubjects();
+}
+
+function deleteTopicFromSubject(subjId, idx){
+  const s = state.customSubjects.find(s=>s.id===subjId);
+  if(!s||!s.topicsList) return;
+  s.topicsList.splice(idx,1);
+  s.topics = s.topicsList.join(' · ')||'Add topics below';
+  save();
+  buildCustomSubjectsList();
+  buildSubjects();
+}
+
+function buildCustomSubjectsList(){
+  const list = document.getElementById('custom-subjects-list');
+  if(!list) return;
+  const all = state.customSubjects||[];
+  if(!all.length){ list.innerHTML=`<div class="empty-state">No subjects yet.<br>Tap "+ Add new subject" to get started.</div>`; return; }
+  list.innerHTML='';
+  all.forEach(s=>{
+    const card = document.createElement('div');
+    card.className='subj-card';
+    const topics = s.topicsList||[];
+    const topicsHtml = topics.map((t,i)=>`
+      <div class="topic-row">
+        <span style="width:6px;height:6px;border-radius:50%;background:${s.dot};flex-shrink:0;display:inline-block"></span>
+        <span class="topic-name">${t}</span>
+        <button class="topic-del" onclick="deleteTopicFromSubject('${s.id}',${i})">×</button>
+      </div>`).join('');
+    card.innerHTML=`
+      <div class="subj-card-row">
+        <div style="width:10px;height:10px;border-radius:50%;background:${s.dot};flex-shrink:0"></div>
+        <div class="subj-card-name">${s.name} <span style="font-size:11px;font-weight:400;color:var(--muted)">· ${s.sub}</span></div>
+        <span class="subj-card-time">${s.time}</span>
+        ${`<button class="subj-del-btn" onclick="deleteCustomSubject('${s.id}')">🗑</button>`}
+      </div>
+      ${topics.length ? `<div class="subj-topics-list">${topicsHtml}</div>` : '<div style="font-size:11px;color:var(--muted);margin-top:6px;padding-left:4px;">No topics added yet</div>'}
+      <div class="add-topic-row" style="margin-top:8px;">
+        <input class="add-topic-input" id="ti-${s.id}" placeholder="Add a topic or content to study"/>
+        <button class="add-topic-btn" onclick="addTopicToSubject('${s.id}')">+ Add</button>
+      </div>`;
+    list.appendChild(card);
+  });
+}
+
+function updateLogSubjectDropdown(){
+  const sel = document.getElementById('log-subject');
+  if(!sel) return;
+  sel.innerHTML='';
+  const custom = state.customSubjects||[];
+  if(!custom.length){
+    const opt = document.createElement('option');
+    opt.value=''; opt.textContent='No subjects yet — add from Subjects tab';
+    sel.appendChild(opt);
+    return;
+  }
+  custom.forEach(s=>{
+    const opt = document.createElement('option');
+    opt.value=s.name; opt.textContent=s.name;
+    sel.appendChild(opt);
+  });
+}
+
+// Subjects — merge built-in + custom
+function getAllSubjects(){
+  return [...SUBJECTS, ...(state.customSubjects||[])];
+}
+
+// Init
+buildSubjects();
+buildRevisions();
+updateProgress();
+updateLogSubjectDropdown();
+</script>
+</body>
+</html>
